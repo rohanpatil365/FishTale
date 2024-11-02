@@ -29,23 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.testjetpack.CustomerInitialsIcon
 import com.example.testjetpack.SharedViewModel
-import com.example.testjetpack.model.CustomerModel
-import com.example.testjetpack.model.OrderItemModel
-import com.example.testjetpack.model.OrderModel
-import com.example.testjetpack.model.OrderType
-import com.example.testjetpack.model.PaymentMode
-import com.example.testjetpack.model.PaymentModel
-import com.example.testjetpack.model.ProductModel
-import com.example.testjetpack.screens.OrderDetail
 import com.example.testjetpack.service.DataService
 import kotlinx.serialization.Serializable
-import java.time.LocalDate
 
 @Serializable
 object Orders{}
 
 @Composable
-fun OrdersScreen(sharedViewModel: SharedViewModel, navController: NavHostController, parentNavController: NavHostController) {
+fun OrdersScreen(navController: NavHostController, parentNavController: NavHostController) {
     Scaffold (
         modifier = Modifier.fillMaxSize(),
         floatingActionButton = {
@@ -111,7 +102,7 @@ fun OrderList(paddings: PaddingValues, parentNavController: NavHostController){
                             )
                             Spacer(modifier = Modifier.weight(1f))
                             Text(
-                                text = item.getDisplayTotalAmount(),
+                                text = formatAsCurrency(item.getTotalAmount()),
                                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
                             )
                         }
