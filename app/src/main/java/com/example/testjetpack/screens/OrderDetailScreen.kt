@@ -46,7 +46,7 @@ object OrderDetail {
 fun OrderDetailScreen(navController: NavHostController, orderId: Int?) {
     Scaffold(
         topBar = {
-            MyTopAppBar2(navController)
+            MyTopAppBar2(navController = navController, title = "Order Detail", showAction = true)
         }
     ) {
         it
@@ -233,7 +233,6 @@ fun OrderDetailScreen(navController: NavHostController, orderId: Int?) {
                                         Text(
                                             text = formatAsCurrency(orderDetail.getDueAmount()),
                                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-//                                            color = chipBackgroundColor,
                                             modifier = Modifier.weight(1f),
                                             textAlign = TextAlign.Right
                                         )
@@ -253,8 +252,7 @@ fun OrderDetailScreen(navController: NavHostController, orderId: Int?) {
 
 @Composable
 fun ItemPriceHeader(itemsLabel: String, priceLabel: String) {
-    Row(
-    ) {
+    Row{
         Text(
             text = itemsLabel,
             modifier = Modifier.weight(1f),
@@ -300,8 +298,7 @@ fun ItemPriceListView(orderDetail: OrderModel) {
 
 @Composable
 fun PaymentHeader(dateHeader: String, modeHeader: String, amountHeader: String) {
-    Row(
-    ) {
+    Row{
         Text(
             text = dateHeader,
             modifier = Modifier.weight(1f),

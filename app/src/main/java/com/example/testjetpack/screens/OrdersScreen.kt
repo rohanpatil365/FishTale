@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.example.testjetpack.CustomerInitialsIcon
-import com.example.testjetpack.SharedViewModel
 import com.example.testjetpack.service.DataService
 import kotlinx.serialization.Serializable
 
@@ -51,9 +50,8 @@ fun OrdersScreen(navController: NavHostController, parentNavController: NavHostC
                     Text(text = "New Order")
                 },
                 onClick = {
-                    val orderDetailObject = OrderDetail
-                    orderDetailObject.orderId = null
-                    parentNavController.navigate(OrderDetail)
+                    val createOrderObject = CreateEditOrder
+                    parentNavController.navigate(createOrderObject)
                 }
             )
         },

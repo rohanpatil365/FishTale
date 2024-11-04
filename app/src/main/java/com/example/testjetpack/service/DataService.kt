@@ -82,6 +82,25 @@ class DataService {
         return customerList
     }
 
+    fun getFishItems(): List<ProductModel> {
+        var fishList = mutableListOf<ProductModel>(
+            ProductModel(1, "Salmon"),
+            ProductModel(2, "Pronze"),
+            ProductModel(3, "Pompret"),
+            ProductModel(4, "Bombay Duck"),
+            ProductModel(5, "Crab")
+        )
+        return fishList
+    }
+
+    fun getPayments(): List<PaymentModel> {
+        var paymentList = mutableListOf<PaymentModel>(
+            PaymentModel(2, 2, 3, LocalDate.now().minusDays(3), 3100, PaymentMode.CASH),
+            PaymentModel(3, 2, 3, LocalDate.now().minusDays(1), 3700, PaymentMode.ONLINE),
+        )
+        return paymentList
+    }
+
     fun getCustomerById(customerId: Int): CustomerModel? {
         var customerList = getCustomers()
         return customerList.find { it.id == customerId }
