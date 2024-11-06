@@ -1,15 +1,12 @@
 package com.example.testjetpack.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,12 +17,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,14 +35,16 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -86,15 +88,15 @@ object CreateEditOrder {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
-    val isNewOrder : Boolean = orderId == null
+    val isNewOrder: Boolean = orderId == null
     val title = if (isNewOrder) "Create Order" else "Edit Order"
 
     // state variables
     var id by remember { mutableStateOf<Int?>(orderId) }
     var orderDate by remember { mutableStateOf<LocalDate?>(null) }
     var orderType = OrderType.SELL
-    var customer by remember {mutableStateOf<CustomerModel?>(null)}
-    var orderItems by remember {mutableStateOf<List<OrderItemModel>>(emptyList())}
+    var customer by remember { mutableStateOf<CustomerModel?>(null) }
+    var orderItems by remember { mutableStateOf<List<OrderItemModel>>(emptyList()) }
     var payments by remember { mutableStateOf<List<PaymentModel>>(emptyList()) }
     var discountAmount by remember { mutableIntStateOf(0) }
 
@@ -104,54 +106,248 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
     var selectedCustomerText by remember { mutableStateOf("Select Option") }
     var selectedCustomerId: Int? = null
 
-    Scaffold(
-        topBar = {
-            MyTopAppBar2(navController = navController, title = title, showAction = false)
-        }
-    ) {
+    Scaffold(topBar = {
+        MyTopAppBar2(navController = navController, title = title, showAction = false)
+    }) {
+        val openAddFishItemDialog = remember { mutableStateOf(false) }
+        val fishItems = DataService().getFishItems()
+        val openAddPaymentItemDialog = remember { mutableStateOf(false) }
+        val payments = DataService().getPayments()
+        val fishItemListVisible = remember { mutableStateOf(false) }
+        val paymentsListVisible = remember { mutableStateOf(false) }
         it
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .padding(it)
-                .fillMaxSize(),
+                .padding(horizontal = 16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
-                CustomerDropdown(
-                    expanded, customers, selectedCustomerText,
+
+            item {
+                CustomerDropdown(expanded,
+                    customers,
+                    selectedCustomerText,
                     onCustomerSelected = { customerModel ->
                         selectedCustomerText = customerModel.name
                         selectedCustomerId = customerModel.id
                     },
                     onExpandedChange = {
                         expanded = it
-                    }
-                )
-                Spacer(modifier = Modifier.padding(4.dp))
+                    })
+                Spacer(modifier = Modifier.height(8.dp))
                 OrderDatePicker()
-                Spacer(modifier = Modifier.padding(4.dp))
-                FishItemListContainer()
-                Spacer(modifier = Modifier.padding(4.dp))
-                PaymentItemListContainer()
-                Spacer(modifier = Modifier.padding(4.dp))
-                Row {
-                    OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel")
-                        Spacer(Modifier.width(8.dp))
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.padding(horizontal = 16.dp))
-                    Button(onClick = {}, modifier = Modifier.weight(1f)){
-                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Cancel")
-                        Spacer(Modifier.width(8.dp))
-                        Text("Save")
-                    }
-                }
-
+                Spacer(modifier = Modifier.height(8.dp))
             }
+
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(
+                        enabled = true,
+                        onClick = {
+                            fishItemListVisible.value = !fishItemListVisible.value
+                        }
+                    )
+                ) {
+                    Text("Fish Items", style = MaterialTheme.typography.titleLarge)
+                    Badge(
+                        content = {
+                            Text(text = fishItems.size.toString())
+                        },
+                        modifier = Modifier.padding(8.dp).size(width = 24.dp, height = 24.dp)
+                    )
+                    FilledTonalIconButton(onClick = {
+                        openAddFishItemDialog.value = true
+                    }) {
+                        Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add Items")
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = if (!fishItemListVisible.value) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                        contentDescription = "Fish Items Arrow",
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            }
+            if (fishItemListVisible.value) {
+                items(fishItems) { fishItem ->
+                    ListItem(
+                        headlineContent = { Text(fishItem.name) },
+                        trailingContent = { Text(fishItem.id.toString()) },
+//                    leadingContent = {
+//                        Icon(
+//                            painter = when (fishItem.id) {
+//                                1 -> painterResource(R.drawable.paplet)
+//                                2 -> painterResource(R.drawable.prawns)
+//                                3 -> painterResource(R.drawable.paplet)
+//                                4 -> painterResource(R.drawable.bombil)
+//                                5 -> painterResource(R.drawable.khekda)
+//                                else -> painterResource(R.drawable.paplet)
+//                            },
+//                            contentDescription = "Payment Mode",
+//                            modifier = Modifier.size(24.dp)
+//                        )
+//                    }
+                    )
+                    HorizontalDivider()
+                }
+            }
+
+            item {
+                if (openAddFishItemDialog.value == true) {
+                    AddFishItemDialog(onDismiss = { openAddFishItemDialog.value = false })
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            item {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(
+                        enabled = true,
+                        onClick = {
+                            paymentsListVisible.value = !paymentsListVisible.value
+                        }
+                    )
+                ) {
+                    Text("Payments", style = MaterialTheme.typography.titleLarge)
+                    Badge(
+                        content = {
+                            Text(text = payments.size.toString())
+                        },
+                        modifier = Modifier.padding(8.dp).size(width = 24.dp, height = 24.dp)
+                    )
+                    FilledTonalIconButton(
+                        onClick = {openAddPaymentItemDialog.value = true}
+                    ) {
+                        Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add Payment")
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Icon(
+                        imageVector = if (!paymentsListVisible.value) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowUp,
+                        contentDescription = "Payment Items Arrow",
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            }
+            if (paymentsListVisible.value) {
+                items(payments) { paymentItem ->
+                    ListItem(headlineContent = { Text(paymentItem.paymentDate.toString()) },
+                        trailingContent = { Text(paymentItem.paymentMode.toString()) },
+                        leadingContent = {
+                            Icon(
+                                painter = if (paymentItem.paymentMode.equals(PaymentMode.CASH)) painterResource(
+                                    R.drawable.outline_currency_rupee_circle
+                                ) else painterResource(R.drawable.outline_upi_pay),
+                                contentDescription = "Payment Mode"
+                            )
+                        }
+                    )
+                    HorizontalDivider()
+                }
+            }
+
+            item {
+                if (openAddPaymentItemDialog.value == true) {
+                    AddPaymentItemDialog(onDismiss = { openAddPaymentItemDialog.value = false })
+                }
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                DiscountToggleContainer()
+                Spacer(modifier = Modifier.height(8.dp))
+                OrderSummaryContainer()
+                Spacer(modifier = Modifier.height(16.dp))
+                CancelSaveButtonContainer()
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun OrderSummaryContainer() {
+    Row {
+        Text("Summary", style = MaterialTheme.typography.titleLarge)
+    }
+    Spacer(modifier = Modifier.padding(4.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Subtotal", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.weight(1f))
+        Text("₹ 5,800", style = MaterialTheme.typography.bodyLarge)
+    }
+    Spacer(modifier = Modifier.padding(4.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Discount", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.weight(1f))
+        Text("₹ 100", style = MaterialTheme.typography.bodyLarge)
+    }
+    Spacer(modifier = Modifier.padding(4.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Paid Amount", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.weight(1f))
+        Text("₹ 3,700", style = MaterialTheme.typography.bodyLarge)
+    }
+    Spacer(modifier = Modifier.padding(4.dp))
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text("Due Amount", style = MaterialTheme.typography.bodyLarge)
+        Spacer(modifier = Modifier.weight(1f))
+        Text("₹ 2,000", style = MaterialTheme.typography.bodyLarge)
+    }
+}
+
+@Composable
+fun DiscountToggleContainer() {
+    var checked by remember { mutableStateOf(true) }
+    Row(
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "Apply Discount",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.weight(1f)
+        )
+
+        Switch(checked = checked, onCheckedChange = {
+            checked = it
+        }, thumbContent = if (checked) {
+            {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(SwitchDefaults.IconSize),
+                )
+            }
+        } else {
+            null
+        })
+    }
+}
+
+@Composable
+fun CancelSaveButtonContainer() {
+    Row {
+        OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
+            Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel")
+            Spacer(Modifier.width(8.dp))
+            Text("Cancel")
+        }
+        Spacer(modifier = Modifier.padding(horizontal = 16.dp))
+        Button(onClick = {}, modifier = Modifier.weight(1f)) {
+            Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Cancel")
+            Spacer(Modifier.width(8.dp))
+            Text("Save")
         }
     }
 }
@@ -185,20 +381,14 @@ fun CustomerDropdown(
                 .menuAnchor()
                 .fillMaxWidth()
         )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { onExpandedChange(false) }
-        ) {
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
             customers.forEach { customerModel ->
-                DropdownMenuItem(
-                    onClick = {
-                        onCustomerSelected(customerModel)
-                        onExpandedChange(false)
-                    },
-                    text = {
-                        Text(text = customerModel.name)
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                DropdownMenuItem(onClick = {
+                    onCustomerSelected(customerModel)
+                    onExpandedChange(false)
+                }, text = {
+                    Text(text = customerModel.name)
+                }, modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -212,8 +402,7 @@ fun OrderDatePicker(
     var selectedDate by remember { mutableStateOf<Long?>(null) }
     var showModal by remember { mutableStateOf(false) }
 
-    OutlinedTextField(
-        value = selectedDate?.let { convertMillisToDate(it) } ?: "",
+    OutlinedTextField(value = selectedDate?.let { convertMillisToDate(it) } ?: "",
         onValueChange = { },
         label = { Text("Order Date") },
         placeholder = { Text("MM/DD/YYYY") },
@@ -230,40 +419,31 @@ fun OrderDatePicker(
                         showModal = true
                     }
                 }
-            }
-    )
+            })
     if (showModal) {
-        DatePickerModal(
-            onDateSelected = { selectedDate = it },
-            onDismiss = { showModal = false }
-        )
+        DatePickerModal(onDateSelected = { selectedDate = it }, onDismiss = { showModal = false })
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerModal(
-    onDateSelected: (Long?) -> Unit,
-    onDismiss: () -> Unit
+    onDateSelected: (Long?) -> Unit, onDismiss: () -> Unit
 ) {
     val datePickerState = rememberDatePickerState()
 
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                onDateSelected(datePickerState.selectedDateMillis)
-                onDismiss()
-            }) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+    DatePickerDialog(onDismissRequest = onDismiss, confirmButton = {
+        TextButton(onClick = {
+            onDateSelected(datePickerState.selectedDateMillis)
+            onDismiss()
+        }) {
+            Text("OK")
         }
-    ) {
+    }, dismissButton = {
+        TextButton(onClick = onDismiss) {
+            Text("Cancel")
+        }
+    }) {
         DatePicker(state = datePickerState)
     }
 }
@@ -271,65 +451,6 @@ fun DatePickerModal(
 fun convertMillisToDate(millis: Long): String {
     val formatter = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
     return formatter.format(Date(millis))
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun FishItemListContainer() {
-    val openAddFishItemDialog = remember { mutableStateOf(false) }
-    val fishDropDownExpanded = remember { mutableStateOf(false) }
-    val fishItems = DataService().getFishItems()
-    LazyColumn() {
-        stickyHeader {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Fish Items", style = MaterialTheme.typography.titleLarge)
-                Badge(
-                    content = {
-                        Text(text = fishItems.size.toString())
-                    },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = {
-                        openAddFishItemDialog.value = true
-                    }
-                ) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Items")
-                }
-            }
-        }
-        items(fishItems) { fishItem ->
-            ListItem(
-                headlineContent = { Text(fishItem.name) },
-                trailingContent = { Text(fishItem.id.toString()) },
-                leadingContent = {
-                    Icon(
-                        painter = when (fishItem.id) {
-                            1 -> painterResource(R.drawable.paplet)
-                            2 -> painterResource(R.drawable.prawns)
-                            3 -> painterResource(R.drawable.paplet)
-                            4 -> painterResource(R.drawable.bombil)
-                            5 -> painterResource(R.drawable.khekda)
-                            else ->
-                                painterResource(R.drawable.paplet)
-                        },
-                        contentDescription = "Payment Mode",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            )
-            HorizontalDivider()
-        }
-    }
-
-    if(openAddFishItemDialog.value == true){
-        AddFishItemDialog(
-            onDismiss = { openAddFishItemDialog.value = false }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -342,149 +463,239 @@ fun AddFishItemDialog(
     var selectedFishText by remember { mutableStateOf("Select fish") }
     var amount by remember { mutableStateOf("") }
 
-    Dialog(
-        onDismissRequest = {onDismiss()}
-    ) {
-        Card (
+    Dialog(onDismissRequest = { onDismiss() }) {
+        Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            shape = RoundedCornerShape(16.dp),
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp)
         ) {
-            Column(
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Add Fish Item",
+                style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("Add Fish Item", style = MaterialTheme.typography.titleLarge, modifier = Modifier.fillMaxWidth() ,textAlign = TextAlign.Center)
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    OutlinedTextField(
-                        readOnly = true,
-                        value = selectedFishText,
-                        onValueChange = { },
-                        label = { Text("Fish Type") },
-                        leadingIcon = {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = "Fish Type")
-                        },
-                        trailingIcon = {
-                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                        },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
-                    ) {
-                        fishItems.forEach { fishModel ->
-                            DropdownMenuItem(
-                                onClick = {
-                                    selectedFishText = fishModel.name
-                                    expanded = false
-                                },
-                                text = {
-                                    Text(text = fishModel.name)
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = {
-                        newValue ->
-                        // Allow only numeric input and remove decimal values
-                        val filteredValue = newValue.filter { it.isDigit() }
-                        amount = filteredValue
-                    },
-                    label = { Text("Amount") },
-                    leadingIcon = {
-                        Text("₹")
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(
-                        onClick = { onDismiss() }
-                    ) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    TextButton(
-                        onClick = { onDismiss() }
-                    ) {
-                        Text("Add")
-                    }
-                }
-            }
-        }
-
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun PaymentItemListContainer() {
-    val payments = DataService().getPayments()
-    LazyColumn() {
-        stickyHeader {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Payments", style = MaterialTheme.typography.titleLarge)
-                Badge(
-                    content = {
-                        Text(text = payments.size.toString())
-                    },
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = {}) {
-                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add Items")
-                }
-            }
-        }
-        items(payments) { paymentItem ->
-            ListItem(
-                headlineContent = { Text(paymentItem.paymentDate.toString()) },
-                trailingContent = { Text(paymentItem.paymentMode.toString()) },
-                leadingContent = {
-                    Icon(
-                        painter = if (paymentItem.paymentMode.equals(PaymentMode.CASH)) painterResource(
-                            R.drawable.outline_currency_rupee_circle
-                        ) else painterResource(R.drawable.outline_upi_pay),
-                        contentDescription = "Payment Mode"
-                    )
-                }
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                textAlign = TextAlign.Center
             )
-            HorizontalDivider()
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                OutlinedTextField(
+                    readOnly = true,
+                    value = selectedFishText,
+                    onValueChange = { },
+                    label = { Text("Fish Type") },
+                    leadingIcon = {
+                        Icon(Icons.Default.ShoppingCart, contentDescription = "Fish Type")
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }) {
+                    fishItems.forEach { fishModel ->
+                        DropdownMenuItem(onClick = {
+                            selectedFishText = fishModel.name
+                            expanded = false
+                        }, text = {
+                            Text(text = fishModel.name)
+                        }, modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { newValue ->
+                    // Allow only numeric input and remove decimal values
+                    val filteredValue = newValue.filter { it.isDigit() }
+                    amount = filteredValue
+                },
+                label = { Text("Amount") },
+                leadingIcon = {
+                    Text("₹")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = { onDismiss() }) {
+                    Text("Cancel")
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                TextButton(onClick = { onDismiss() }) {
+                    Text("Add")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-@Preview
+fun AddPaymentItemDialog(
+    onDismiss: () -> Unit
+) {
+    val paymentModeList = mutableListOf<PaymentMode>(
+        PaymentMode.CASH, PaymentMode.ONLINE
+    )
+    var expanded by remember { mutableStateOf(false) }
+    var selectedPaymentMode by remember { mutableStateOf("Select payment mode") }
+    var amount by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = { onDismiss() }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+        ) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "Add Payment",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                textAlign = TextAlign.Center
+            )
+
+            PaymentDialogDatePicker()
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = !expanded },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                OutlinedTextField(
+                    readOnly = true,
+                    value = selectedPaymentMode,
+                    onValueChange = { },
+                    label = { Text("Payment Mode") },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.payments_outline),
+                            contentDescription = "Fish Type"
+                        )
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    paymentModeList.forEach { paymentMode ->
+                        DropdownMenuItem(onClick = {
+                            selectedPaymentMode = paymentMode.name
+                            expanded = false
+                        }, text = {
+                            Text(text = paymentMode.name)
+                        }, modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = amount,
+                onValueChange = { newValue ->
+                    // Allow only numeric input and remove decimal values
+                    val filteredValue = newValue.filter { it.isDigit() }
+                    amount = filteredValue
+                },
+                label = { Text("Amount") },
+                leadingIcon = {
+                    Text("₹")
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                TextButton(onClick = { onDismiss() }) {
+                    Text("Cancel")
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                TextButton(onClick = { onDismiss() }) {
+                    Text("Add")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaymentDialogDatePicker(
+) {
+    var selectedDate by remember { mutableStateOf<Long?>(null) }
+    var showModal by remember { mutableStateOf(false) }
+
+    OutlinedTextField(value = selectedDate?.let { convertMillisToDate(it) } ?: "",
+        onValueChange = { },
+        label = { Text("Payment Date") },
+        placeholder = { Text("MM/DD/YYYY") },
+        leadingIcon = {
+            Icon(Icons.Default.DateRange, contentDescription = "Select date")
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .pointerInput(selectedDate) {
+                awaitEachGesture {
+                    awaitFirstDown(pass = PointerEventPass.Initial)
+                    val upEvent = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                    if (upEvent != null) {
+                        showModal = true
+                    }
+                }
+            })
+    if (showModal) {
+        DatePickerModal(onDateSelected = { selectedDate = it }, onDismiss = { showModal = false })
+    }
+}
+
+
+@Composable
+@Preview()
 fun CreateEditOrderScreenPreview() {
     CreateEditOrderScreen(rememberNavController(), null)
 }
