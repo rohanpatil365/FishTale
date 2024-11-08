@@ -1,6 +1,5 @@
 package com.example.testjetpack
 
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -12,14 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
-import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.testjetpack.screens.Home
 import com.example.testjetpack.screens.HomeScreen
-import com.example.testjetpack.screens.OrderDetail
-import com.example.testjetpack.screens.OrderDetailScreen
 import com.example.testjetpack.screens.Orders
 import com.example.testjetpack.screens.OrdersScreen
 import com.example.testjetpack.screens.Payments
@@ -35,7 +31,6 @@ object MyBottomNavigationView {
 
 @Composable
 fun MyBottomNavigationView(navController: NavHostController, parentNavController : NavHostController) {
-    val sharedViewModel: SharedViewModel = SharedViewModel()
 
     val items = listOf(
         BottomNavigationItem(
@@ -85,7 +80,7 @@ fun MyBottomNavigationView(navController: NavHostController, parentNavController
                 HomeScreen()
             }
             composable<Orders> {
-                OrdersScreen(sharedViewModel, navController, parentNavController)
+                OrdersScreen(navController, parentNavController)
             }
 
             composable<Payments> {

@@ -8,9 +8,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.example.testjetpack.screens.CreateEditOrder
+import com.example.testjetpack.screens.CreateEditOrderScreen
 import com.example.testjetpack.screens.OrderDetail
 import com.example.testjetpack.screens.OrderDetailScreen
-import com.example.testjetpack.ui.theme.TestJetpackTheme
 
 @Composable
 fun MyNavHost(modifier: Modifier) {
@@ -33,6 +34,10 @@ fun MyNavHost(modifier: Modifier) {
         composable<OrderDetail>{
             val args = it.toRoute<OrderDetail>()
             OrderDetailScreen(navController = navController, orderId = args.orderId)
+        }
+        composable<CreateEditOrder>{
+            val args = it.toRoute<CreateEditOrder>()
+            CreateEditOrderScreen(navController = navController, orderId = args.orderId)
         }
     }
 }

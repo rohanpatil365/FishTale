@@ -7,7 +7,11 @@ import com.example.testjetpack.model.OrderType
 import com.example.testjetpack.model.PaymentMode
 import com.example.testjetpack.model.PaymentModel
 import com.example.testjetpack.model.ProductModel
+import java.text.NumberFormat
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
+import java.util.Locale
 
 class DataService {
     fun getPurchase(): List<OrderModel> {
@@ -30,8 +34,8 @@ class DataService {
                     OrderItemModel(4, 1, ProductModel(4, "Fish4"), 40, 4000),
                     OrderItemModel(5, 1, ProductModel(5, "Fish5"), 5, 800)
                 ),
-                null,
-                0
+                emptyList(),
+                false
             ),
             OrderModel(
                 2,
@@ -46,7 +50,7 @@ class DataService {
                 mutableListOf<PaymentModel>(
                     PaymentModel(1, 2, 2, LocalDate.now(), 3800, PaymentMode.CASH)
                 ),
-                0
+                true
             ),
             OrderModel(
                 3,
@@ -62,16 +66,24 @@ class DataService {
                     PaymentModel(2, 2, 3, LocalDate.now().minusDays(3), 3100, PaymentMode.CASH),
                     PaymentModel(3, 2, 3, LocalDate.now().minusDays(1), 3700, PaymentMode.ONLINE),
                 ),
-                0
+                false
             )
 
         )
         return orderList
     }
 
-    fun getOrderDetail(orderId: Int): OrderModel? {
+    fun getOrderDetail(orderId: Int): OrderModel {
         var orderList = getPurchase()
-        return orderList.find { it.id == orderId }
+        for( order in orderList){
+            if(order.id == orderId){
+                return order
+            }
+        }
+        return getEmptyOrderDetail()
+    }
+    fun getEmptyOrderDetail(): OrderModel {
+        return OrderModel(-1, LocalDate.now(), OrderType.PURCHASE, getEmptyCustomer(), emptyList(), emptyList(), false )
     }
 
     fun getCustomers(): List<CustomerModel> {
@@ -82,8 +94,55 @@ class DataService {
         return customerList
     }
 
+    fun getEmptyCustomer(): CustomerModel {
+        return CustomerModel(-1, "Select Customer", "", "", true)
+    }
+
+    fun getFishItems(): List<ProductModel> {
+        var fishList = mutableListOf<ProductModel>(
+            ProductModel(1, "Salmon"),
+            ProductModel(2, "Pronze"),
+            ProductModel(3, "Pompret"),
+            ProductModel(4, "Bombay Duck"),
+            ProductModel(5, "Crab")
+        )
+        return fishList
+    }
+
+    fun getPayments(): List<PaymentModel> {
+        var paymentList = mutableListOf<PaymentModel>(
+            PaymentModel(2, 2, 3, LocalDate.now().minusDays(3), 3100, PaymentMode.CASH),
+            PaymentModel(3, 2, 3, LocalDate.now().minusDays(1), 3700, PaymentMode.ONLINE),
+        )
+        return paymentList
+    }
+
     fun getCustomerById(customerId: Int): CustomerModel? {
         var customerList = getCustomers()
         return customerList.find { it.id == customerId }
+    }
+
+    fun formatAsCurrency(amount: Int): String {
+        val format = NumberFormat.getCurrencyInstance(Locale("en", "IN")) // India locale
+        format.maximumFractionDigits = 0 // No decimal places
+        return format.format(amount)
+    }
+
+    fun formatAsPositiveCurrency(amount: Int) : String {
+        return "+ " + formatAsCurrency(amount)
+    }
+
+    fun formatAsNegativeCurrency(amount: Int) : String {
+        return "- " + formatAsCurrency(amount)
+    }
+
+    fun convertMillisToDate(millis: Long?): LocalDate {
+        if (millis == null) {
+            return LocalDate.now()
+        } else {
+            return Instant.ofEpochMilli(millis)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }
     }
 }
