@@ -51,6 +51,7 @@ fun OrdersScreen(navController: NavHostController, parentNavController: NavHostC
                 },
                 onClick = {
                     val createOrderObject = CreateEditOrder
+                    createOrderObject.orderId = null
                     parentNavController.navigate(createOrderObject)
                 }
             )
@@ -72,9 +73,12 @@ fun OrderList(paddings: PaddingValues, parentNavController: NavHostController){
             ElevatedCard(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
-                    val orderDetailObject = OrderDetail
-                    orderDetailObject.orderId = item.id
-                    parentNavController.navigate(orderDetailObject)
+//                    val orderDetailObject = OrderDetail
+//                    orderDetailObject.orderId = item.id
+//                    parentNavController.navigate(orderDetailObject)
+                    val createOrderObject = CreateEditOrder
+                    createOrderObject.orderId = item.id
+                    parentNavController.navigate(createOrderObject)
                 }
             ) {
                 Row(

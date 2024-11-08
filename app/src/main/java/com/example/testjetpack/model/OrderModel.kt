@@ -9,14 +9,13 @@ data class OrderModel(
     var orderType: OrderType,
     var customer: CustomerModel,
     var orderItems: List<OrderItemModel>,
-    var payments: List<PaymentModel>? = null,
-    var discountAmount: Int
+    var payments: List<PaymentModel>,
+    var isDiscounted: Boolean
 ) {
 
     fun getTotalAmount(): Int {
         return orderItems.map { it.amount }.sum()
     }
-
 
     fun getDisplayDate(): String {
         val today = LocalDate.now()
@@ -45,8 +44,16 @@ data class OrderModel(
     fun getDueAmount(): Int {
         var orderAmount = getTotalAmount()
         var paidAmount = getPaidAmount()
-        var pendingAmount = orderAmount - paidAmount - discountAmount
+        var pendingAmount = orderAmount - paidAmount - getDiscountAmount()
         return pendingAmount
+    }
+
+    fun getDiscountAmount(): Int {
+        if(isDiscounted){
+            return getTotalAmount() - getPaidAmount()
+        }else {
+            return 0
+        }
     }
 
     fun isPaid(): Boolean {

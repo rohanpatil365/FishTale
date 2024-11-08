@@ -193,7 +193,7 @@ fun OrderDetailScreen(navController: NavHostController, orderId: Int?) {
                                             textAlign = TextAlign.Left
                                         )
                                         Text(
-                                            text = formatAsNegativeCurrency(orderDetail.discountAmount),
+                                            text = formatAsNegativeCurrency(0),
                                             style = MaterialTheme.typography.bodyMedium,
                                             modifier = Modifier.weight(1f),
                                             textAlign = TextAlign.Right

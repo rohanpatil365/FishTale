@@ -43,6 +43,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -50,9 +51,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,15 +71,14 @@ import com.example.testjetpack.MyTopAppBar2
 import com.example.testjetpack.R
 import com.example.testjetpack.model.CustomerModel
 import com.example.testjetpack.model.OrderItemModel
-import com.example.testjetpack.model.OrderType
+import com.example.testjetpack.model.OrderModel
 import com.example.testjetpack.model.PaymentMode
-import com.example.testjetpack.model.PaymentModel
+import com.example.testjetpack.model.ProductModel
 import com.example.testjetpack.service.DataService
 import kotlinx.serialization.Serializable
-import java.text.SimpleDateFormat
 import java.time.LocalDate
-import java.util.Date
-import java.util.Locale
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 @Serializable
 object CreateEditOrder {
@@ -91,30 +91,25 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
     val isNewOrder: Boolean = orderId == null
     val title = if (isNewOrder) "Create Order" else "Edit Order"
 
-    // state variables
-    var id by remember { mutableStateOf<Int?>(orderId) }
-    var orderDate by remember { mutableStateOf<LocalDate?>(null) }
-    var orderType = OrderType.SELL
-    var customer by remember { mutableStateOf<CustomerModel?>(null) }
-    var orderItems by remember { mutableStateOf<List<OrderItemModel>>(emptyList()) }
-    var payments by remember { mutableStateOf<List<PaymentModel>>(emptyList()) }
-    var discountAmount by remember { mutableIntStateOf(0) }
+    val orderObject : OrderModel = if (orderId != null) {
+        DataService().getOrderDetail(orderId)
+    } else {
+        DataService().getEmptyOrderDetail()
+    }
+
+    var currentOrder by remember { mutableStateOf(orderObject)}
 
     // Customer dropdown data here
     val customers = DataService().getCustomers()
     var expanded by remember { mutableStateOf(false) }
-    var selectedCustomerText by remember { mutableStateOf("Select Option") }
-    var selectedCustomerId: Int? = null
 
     Scaffold(topBar = {
         MyTopAppBar2(navController = navController, title = title, showAction = false)
     }) {
         val openAddFishItemDialog = remember { mutableStateOf(false) }
-        val fishItems = DataService().getFishItems()
         val openAddPaymentItemDialog = remember { mutableStateOf(false) }
-        val payments = DataService().getPayments()
-        val fishItemListVisible = remember { mutableStateOf(false) }
-        val paymentsListVisible = remember { mutableStateOf(false) }
+        val fishItemListVisible = remember { mutableStateOf(true) }
+        val paymentsListVisible = remember { mutableStateOf(true) }
         it
         LazyColumn(
             modifier = Modifier
@@ -125,16 +120,15 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
             item {
                 CustomerDropdown(expanded,
                     customers,
-                    selectedCustomerText,
+                    currentOrder.customer,
                     onCustomerSelected = { customerModel ->
-                        selectedCustomerText = customerModel.name
-                        selectedCustomerId = customerModel.id
+                        currentOrder.customer = customerModel
                     },
                     onExpandedChange = {
                         expanded = it
                     })
                 Spacer(modifier = Modifier.height(8.dp))
-                OrderDatePicker()
+                OrderDatePicker(currentOrder.orderDate)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -151,9 +145,11 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
                     Text("Fish Items", style = MaterialTheme.typography.titleLarge)
                     Badge(
                         content = {
-                            Text(text = fishItems.size.toString())
+                            Text(text = currentOrder.orderItems.size.toString())
                         },
-                        modifier = Modifier.padding(8.dp).size(width = 24.dp, height = 24.dp)
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(width = 24.dp, height = 24.dp)
                     )
                     FilledTonalIconButton(onClick = {
                         openAddFishItemDialog.value = true
@@ -169,24 +165,20 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
                 }
             }
             if (fishItemListVisible.value) {
-                items(fishItems) { fishItem ->
+                items(currentOrder.orderItems) { fishItem ->
                     ListItem(
-                        headlineContent = { Text(fishItem.name) },
-                        trailingContent = { Text(fishItem.id.toString()) },
-//                    leadingContent = {
-//                        Icon(
-//                            painter = when (fishItem.id) {
-//                                1 -> painterResource(R.drawable.paplet)
-//                                2 -> painterResource(R.drawable.prawns)
-//                                3 -> painterResource(R.drawable.paplet)
-//                                4 -> painterResource(R.drawable.bombil)
-//                                5 -> painterResource(R.drawable.khekda)
-//                                else -> painterResource(R.drawable.paplet)
-//                            },
-//                            contentDescription = "Payment Mode",
-//                            modifier = Modifier.size(24.dp)
-//                        )
-//                    }
+                        headlineContent = {
+                            Text(
+                                text = fishItem.product.name,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        trailingContent = {
+                            Text(
+                                text = formatAsCurrency(fishItem.amount),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
                     )
                     HorizontalDivider()
                 }
@@ -194,7 +186,11 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
 
             item {
                 if (openAddFishItemDialog.value == true) {
-                    AddFishItemDialog(onDismiss = { openAddFishItemDialog.value = false })
+                    AddFishItemDialog(
+                        onDismiss = { openAddFishItemDialog.value = false },
+                        onOrderChanged = { currentOrder = it},
+                        currentOrder
+                    )
                 }
             }
 
@@ -215,12 +211,14 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
                     Text("Payments", style = MaterialTheme.typography.titleLarge)
                     Badge(
                         content = {
-                            Text(text = payments.size.toString())
+                            Text(text = currentOrder.payments.size.toString())
                         },
-                        modifier = Modifier.padding(8.dp).size(width = 24.dp, height = 24.dp)
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(width = 24.dp, height = 24.dp)
                     )
                     FilledTonalIconButton(
-                        onClick = {openAddPaymentItemDialog.value = true}
+                        onClick = { openAddPaymentItemDialog.value = true }
                     ) {
                         Icon(imageVector = Icons.Outlined.Add, contentDescription = "Add Payment")
                     }
@@ -233,9 +231,20 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
                 }
             }
             if (paymentsListVisible.value) {
-                items(payments) { paymentItem ->
-                    ListItem(headlineContent = { Text(paymentItem.paymentDate.toString()) },
-                        trailingContent = { Text(paymentItem.paymentMode.toString()) },
+                items(items = currentOrder.payments) { paymentItem ->
+                    ListItem(
+                        headlineContent = {
+                            Text(
+                                text = paymentItem.paymentDate.toString(),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        trailingContent = {
+                            Text(
+                                text = DataService().formatAsCurrency(paymentItem.amount),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
                         leadingContent = {
                             Icon(
                                 painter = if (paymentItem.paymentMode.equals(PaymentMode.CASH)) painterResource(
@@ -257,11 +266,11 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
 
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                DiscountToggleContainer()
+                DiscountToggleContainer(onOrderChanged = {currentOrder = it}, currentOrder)
                 Spacer(modifier = Modifier.height(8.dp))
-                OrderSummaryContainer()
+                OrderSummaryContainer(currentOrder)
                 Spacer(modifier = Modifier.height(16.dp))
-                CancelSaveButtonContainer()
+                CancelSaveButtonContainer(orderModel = currentOrder)
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
@@ -269,7 +278,7 @@ fun CreateEditOrderScreen(navController: NavHostController, orderId: Int?) {
 }
 
 @Composable
-fun OrderSummaryContainer() {
+fun OrderSummaryContainer(orderModel: OrderModel) {
     Row {
         Text("Summary", style = MaterialTheme.typography.titleLarge)
     }
@@ -277,39 +286,67 @@ fun OrderSummaryContainer() {
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Subtotal", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = "Subtotal",
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Text("₹ 5,800", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = DataService().formatAsCurrency(orderModel.getTotalAmount()),
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
     Spacer(modifier = Modifier.padding(4.dp))
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Discount", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = "Discount",
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Text("₹ 100", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = DataService().formatAsCurrency(orderModel.getDiscountAmount()),
+            style = MaterialTheme.typography.bodyLarge
+        )
+//        Text(
+//            text = orderModel.isDiscounted.toString(),
+//            style = MaterialTheme.typography.bodyLarge
+//        )
     }
     Spacer(modifier = Modifier.padding(4.dp))
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Paid Amount", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = "Paid Amount",
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Text("₹ 3,700", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = DataService().formatAsCurrency(orderModel.getPaidAmount()),
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
     Spacer(modifier = Modifier.padding(4.dp))
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("Due Amount", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = "Due Amount",
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(modifier = Modifier.weight(1f))
-        Text("₹ 2,000", style = MaterialTheme.typography.bodyLarge)
+        Text(
+            text = DataService().formatAsCurrency(orderModel.getDueAmount()),
+            style = MaterialTheme.typography.bodyLarge
+        )
     }
 }
 
 @Composable
-fun DiscountToggleContainer() {
-    var checked by remember { mutableStateOf(true) }
+fun DiscountToggleContainer(onOrderChanged : (OrderModel) -> Unit, orderModel: OrderModel) {
+    var checked by remember { mutableStateOf(orderModel.isDiscounted) }
     Row(
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -321,6 +358,7 @@ fun DiscountToggleContainer() {
 
         Switch(checked = checked, onCheckedChange = {
             checked = it
+            onOrderChanged(orderModel.copy(isDiscounted = it))
         }, thumbContent = if (checked) {
             {
                 Icon(
@@ -336,7 +374,7 @@ fun DiscountToggleContainer() {
 }
 
 @Composable
-fun CancelSaveButtonContainer() {
+fun CancelSaveButtonContainer(orderModel: OrderModel) {
     Row {
         OutlinedButton(onClick = {}, modifier = Modifier.weight(1f)) {
             Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel")
@@ -357,7 +395,7 @@ fun CancelSaveButtonContainer() {
 fun CustomerDropdown(
     expanded: Boolean,
     customers: List<CustomerModel>,
-    selectedCustomerText: String,
+    selectedCustomer: CustomerModel,
     onCustomerSelected: (CustomerModel) -> Unit,
     onExpandedChange: (Boolean) -> Unit
 ) {
@@ -368,7 +406,7 @@ fun CustomerDropdown(
     ) {
         OutlinedTextField(
             readOnly = true,
-            value = selectedCustomerText,
+            value = selectedCustomer.name,
             onValueChange = { },
             label = { Text("Customer") },
             leadingIcon = {
@@ -397,15 +435,15 @@ fun CustomerDropdown(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OrderDatePicker(
-) {
-    var selectedDate by remember { mutableStateOf<Long?>(null) }
+fun OrderDatePicker(orderDate: LocalDate) {
+    var selectedDate by remember { mutableStateOf<LocalDate>(orderDate) }
     var showModal by remember { mutableStateOf(false) }
 
-    OutlinedTextField(value = selectedDate?.let { convertMillisToDate(it) } ?: "",
+    OutlinedTextField(value = selectedDate.let { getDisplayDate(it) },
         onValueChange = { },
+        readOnly = true,
         label = { Text("Order Date") },
-        placeholder = { Text("MM/DD/YYYY") },
+        placeholder = { Text("yyyy/MM/dd") },
         leadingIcon = {
             Icon(Icons.Default.DateRange, contentDescription = "Select date")
         },
@@ -421,20 +459,32 @@ fun OrderDatePicker(
                 }
             })
     if (showModal) {
-        DatePickerModal(onDateSelected = { selectedDate = it }, onDismiss = { showModal = false })
+        DatePickerModal(
+            onDateSelected = { selectedDate = it },
+            onDismiss = { showModal = false },
+            selectedDate = selectedDate
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerModal(
-    onDateSelected: (Long?) -> Unit, onDismiss: () -> Unit
+    onDateSelected: (LocalDate) -> Unit, onDismiss: () -> Unit, selectedDate: LocalDate?
 ) {
-    val datePickerState = rememberDatePickerState()
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = selectedDate?.atStartOfDay(ZoneOffset.UTC)?.toInstant()
+            ?.toEpochMilli()
+    )
 
     DatePickerDialog(onDismissRequest = onDismiss, confirmButton = {
         TextButton(onClick = {
-            onDateSelected(datePickerState.selectedDateMillis)
+            onDateSelected(
+                DataService().convertMillisToDate(
+                    datePickerState.selectedDateMillis
+                )
+            )
+
             onDismiss()
         }) {
             Text("OK")
@@ -448,20 +498,25 @@ fun DatePickerModal(
     }
 }
 
-fun convertMillisToDate(millis: Long): String {
-    val formatter = SimpleDateFormat("yyyy/MM/dd", Locale.getDefault())
-    return formatter.format(Date(millis))
+fun getDisplayDate(orderDate: LocalDate): String {
+    return orderDate.format(DateTimeFormatter.ofPattern("yyyy/MM/dd"))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddFishItemDialog(
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onOrderChanged: (OrderModel) -> Unit,
+    currentOrder: OrderModel
 ) {
     val fishItems = DataService().getFishItems()
     var expanded by remember { mutableStateOf(false) }
     var selectedFishText by remember { mutableStateOf("Select fish") }
+    var selectedFishProduct by remember { mutableStateOf<ProductModel?>(null) }
     var amount by remember { mutableStateOf("") }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     Dialog(onDismissRequest = { onDismiss() }) {
         Card(
@@ -507,6 +562,7 @@ fun AddFishItemDialog(
                     fishItems.forEach { fishModel ->
                         DropdownMenuItem(onClick = {
                             selectedFishText = fishModel.name
+                            selectedFishProduct = fishModel
                             expanded = false
                         }, text = {
                             Text(text = fishModel.name)
@@ -543,7 +599,19 @@ fun AddFishItemDialog(
                     Text("Cancel")
                 }
                 Spacer(modifier = Modifier.width(16.dp))
-                TextButton(onClick = { onDismiss() }) {
+                TextButton(onClick = {
+                    if(selectedFishProduct != null && amount != ""){
+                        val newOrderItem : OrderItemModel =
+                            OrderItemModel(-1, currentOrder.id, selectedFishProduct!!, null, amount.toInt())
+
+                        onOrderChanged(
+                            currentOrder.copy(orderItems = (currentOrder.orderItems + newOrderItem))
+                        )
+                    }else{
+                        // show snackbar
+                    }
+                    onDismiss()
+                }) {
                     Text("Add")
                 }
             }
@@ -666,13 +734,14 @@ fun AddPaymentItemDialog(
 @Composable
 fun PaymentDialogDatePicker(
 ) {
-    var selectedDate by remember { mutableStateOf<Long?>(null) }
+    var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var showModal by remember { mutableStateOf(false) }
 
-    OutlinedTextField(value = selectedDate?.let { convertMillisToDate(it) } ?: "",
+    OutlinedTextField(value = selectedDate?.let { getDisplayDate(it) } ?: "",
         onValueChange = { },
+        readOnly = true,
         label = { Text("Payment Date") },
-        placeholder = { Text("MM/DD/YYYY") },
+        placeholder = { Text("yyyy/MM/dd") },
         leadingIcon = {
             Icon(Icons.Default.DateRange, contentDescription = "Select date")
         },
@@ -689,7 +758,11 @@ fun PaymentDialogDatePicker(
                 }
             })
     if (showModal) {
-        DatePickerModal(onDateSelected = { selectedDate = it }, onDismiss = { showModal = false })
+        DatePickerModal(
+            onDateSelected = { selectedDate = it },
+            onDismiss = { showModal = false },
+            selectedDate = selectedDate
+        )
     }
 }
 
@@ -697,5 +770,5 @@ fun PaymentDialogDatePicker(
 @Composable
 @Preview()
 fun CreateEditOrderScreenPreview() {
-    CreateEditOrderScreen(rememberNavController(), null)
+    CreateEditOrderScreen(rememberNavController(), 1)
 }
